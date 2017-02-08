@@ -11,6 +11,10 @@ RUN apt-get install -y --no-install-recommends \
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# APCU
+RUN pecl install apcu-5.1.8 \
+    && docker-php-ext-enable apcu
+
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/include/postgresql/
 
 RUN docker-php-ext-install \
@@ -44,7 +48,12 @@ RUN pecl install channel://pecl.php.net/redis-3.0.0 && docker-php-ext-enable red
 # Install composer
 RUN curl -k -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-#RUN pecl install xdebug
+RUN export VERSION=`php -r "echo PHP_MAJOR_VERSION.PHP_MINOR_VERSION;"` \
+    && curl -A "Docker" -o /tmp/blackfire-probe.tar.gz -D - -L -s https://blackfire.io/api/v1/releases/probe/php/linux/amd64/${VERSION} \
+    && tar zxpf /tmp/blackfire-probe.tar.gz -C /tmp \
+    && mv /tmp/blackfire-*.so `php -r "echo ini_get('extension_dir');"`/blackfire.so \
+    && printf "extension=blackfire.so\nblackfire.agent_socket=\${BLACKFIRE_PORT}" > $PHP_INI_DIR/conf.d/blackfire.ini \
+    && rm -rf /tmp/*
 
 # Workaround for write permission on write to MacOS X volumes
 # See https://github.com/boot2docker/boot2docker/pull/534
