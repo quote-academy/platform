@@ -1,0 +1,75 @@
+version: '2'
+
+services:
+    api:
+        container_name: quote_api
+        build: docker/api
+        volumes_from:
+            - db
+            - redis
+            - elastic
+            - neo4j
+        volumes:
+            - api_var-cache:/srv/api/var/cache
+            - api_var-logs:/srv/api/var/logs
+            - api_var-sessions:/srv/api/var/sessions
+            - ./api:/srv/api
+        depends_on:
+            - "db"
+            - "elastic"
+            - "redis"
+            - "neo4j"
+
+    nginx:
+        container_name: quote_nginx
+        build: docker/nginx
+        ports:
+            - "80:80"
+        volumes_from:
+            - api
+        networks:
+            default:
+                aliases:
+                    - 'nginx'
+                    - 'api.quote.dev'
+
+    db:
+        container_name: quote_db
+        build: docker/db
+        ports:
+            - "5432:5432"
+        volumes:
+            - ./docker/db/scripts:/docker-entrypoint-initdb.d/
+            - api_var-logs:/srv/api/var/logs/db
+        environment:
+            POSTGRES_DB: quotedb
+
+    redis:
+        container_name: quote_redis
+        image: redis:3.0
+
+    rabbitmq:
+        container_name: rabbitmq
+        image: rabbitmq:3.6.6-management
+        ports:
+            - "15672:15672"
+            - "5672:5672"
+
+    elastic:
+        container_name: quote_elastic
+        build: docker/elastic
+        ports:
+            - "5601:5601"
+            - "9200:9200"
+            - "9300:9300"
+
+    neo4j:
+        container_name: quote_neo4j
+        build: docker/neo4j
+        ports:
+            - "7474:7474"
+
+volumes:
+    api_var-cache:
+    api_var-logs:
+    api_var-sessions:
